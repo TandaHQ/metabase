@@ -24,7 +24,8 @@
             [metabase.util.honeysql-extensions :as hx]
             [metabase.util.schema :as su]
             [schema.core :as s]
-            [toucan.db :as db]))
+            [toucan.db :as db]
+            [toucan.hydrate :as hydrate]))
 
 (def ^:private SearchContext
   "Map with the various allowed search parameters, used to construct the SQL query"
@@ -295,6 +296,12 @@
   [{:keys [id]}]
   (-> id Segment mi/can-read?))
 
+(defn- hydrate-if-necessary
+  [{:keys [model] :as row}]
+  (if (= model "card")
+    (hydrate/hydrate row :dashboard_count)
+    row))
+
 (s/defn ^:private search
   "Builds a search query that includes all of the searchable entities and runs it"
   [search-ctx :- SearchContext]
@@ -313,6 +320,7 @@
                         ;; MySQL returns `:favorite` and `:archived` as `1` or `0` so convert those to boolean as needed
                         (map #(update % :favorite bit->boolean))
                         (map #(update % :archived bit->boolean))
+                        (map hydrate-if-necessary)
                         (map (partial scoring/score-and-result (:search-string search-ctx)))
                         (filter some?))]
       (->> results

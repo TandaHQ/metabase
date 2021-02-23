@@ -135,10 +135,18 @@
                      (tokenize (normalize query-string))
                      result)))
 
+(defn- negative-or-zero
+  [x]
+  (or (some-> x -)
+      0))
+
 (defn- pinned-score
   [{:keys [collection_position]}]
-  (or (some-> collection_position -)
-      0))
+  (negative-or-zero collection_position))
+
+(defn- dashboard-count-score
+  [{:keys [dashboard_count]}]
+  (negative-or-zero dashboard_count))
 
 (defn- compare-score-and-result
   "Compare maps of scores and results. Must return -1, 0, or 1. The score is assumed to be a vector, and will be
@@ -169,6 +177,7 @@
 (defn- combined-score
   [{:keys [text-score result]}]
   [(pinned-score result)
+   (dashboard-count-score result)
    (- text-score)
    (model->sort-position (:model result))
    (:name result)])
